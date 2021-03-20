@@ -13,7 +13,7 @@ zgaszona -> wszystko OK! i zapala zieloną :)
 
 Wykorzystuję bibliotekę TinyGPS++: <http://arduiniana.org/libraries/tinygpsplus/>
 
-Poniżej wersja testowa urządzenia:
+Poniżej wersja testowa urządzenia na Arduino (docelowo przeniesienie na płytkę prototypową oraz wykorzeystanie platformy 3,3V):
 
 ![Foto 1](https://skaskiewicz.pl/.foto/image001.jpg)
 ![Foto 2](https://skaskiewicz.pl/.foto/image002.jpg)
