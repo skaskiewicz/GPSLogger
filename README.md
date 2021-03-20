@@ -13,6 +13,8 @@ zgaszona -> wszystko OK! i zapala zieloną :)
 
 Wykorzystuję bibliotekę TinyGPS++: <http://arduiniana.org/libraries/tinygpsplus/>
 
+Poniżej wersja testowa urządzenia:
+
 ![Foto 1](https://skaskiewicz.pl/.foto/image001.jpg)
 ![Foto 2](https://skaskiewicz.pl/.foto/image002.jpg)
 ![Foto 3](https://skaskiewicz.pl/.foto/image003.jpg)
