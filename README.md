@@ -13,9 +13,9 @@ zgaszona -> wszystko OK! i zapala zieloną :)
 
 Wykorzystuję bibliotekę TinyGPS++: <http://arduiniana.org/libraries/tinygpsplus/>
 
-* ![Foto 1](https://skaskiewicz.pl/.foto/IMG_20200413_120334.jpg)
-* ![Foto 2](https://skaskiewicz.pl/.foto/IMG_20200413_120346.jpg)
-* ![Foto 3](https://skaskiewicz.pl/.foto/IMG_20200413_120351.jpg)
-* ![Foto 4](https://skaskiewicz.pl/.foto/IMG_20200413_120404.jpg)
-* ![Foto 5](https://skaskiewicz.pl/.foto/IMG_20200413_120408.jpg)
-* ![Foto 6](https://skaskiewicz.pl/.foto/IMG_20200413_120413.jpg)
+![Foto 1](https://skaskiewicz.pl/.foto/IMG_20200413_120334.jpg)
+![Foto 2](https://skaskiewicz.pl/.foto/IMG_20200413_120346.jpg)
+![Foto 3](https://skaskiewicz.pl/.foto/IMG_20200413_120351.jpg)
+![Foto 4](https://skaskiewicz.pl/.foto/IMG_20200413_120404.jpg)
+![Foto 5](https://skaskiewicz.pl/.foto/IMG_20200413_120408.jpg)
+![Foto 6](https://skaskiewicz.pl/.foto/IMG_20200413_120413.jpg)
