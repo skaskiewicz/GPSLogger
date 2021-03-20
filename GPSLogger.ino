@@ -1,38 +1,17 @@
 /*
-  GPS Logger
+   GPS LOGGER ORAZ ODBIORNIK GPS (fork https://github.com/CheapskateProjects/GPSLogger)
 
-  Simple project which logs data from GPS module (NEO 6M) into SD card. 
-  Locations are stored as file (yyyyMMdd.txt) and the file will contain one row per location (dd.MM.yyyy HH:mm:ss lat,lon). 
-  Location is stored for each interval given as configuration variable 'frequency'. 
-
-  Led modes:
-  continuous -> error
-  blinking -> looking for location
-  off -> everything ok
-
-  Connecting modules:
-  Pin3 -> GPS-module-RX
-  Pin4 -> GPS-module-TX
-  Pin10 -> SD-module-SS
-  Pin11/MOSI -> SD-module-MOSI
-  Pin12/MISO -> SD-module-MISO
-  Pin13/SCK -> SD-module-SCK
-
-  Dependency(TinyGPS++ library): http://arduiniana.org/libraries/tinygpsplus/
-  
-  created   Apr 2017
-  by CheapskateProjects
-
-  ---------------------------
-  The MIT License (MIT)
-
-  Copyright (c) 2017 CheapskateProjects
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+   Program realizuje dwie funkcje: zapisuje aktualne położenie do pliku lub wysyła dane na port wyjściowy (nie jednocześnie).
+   Jest to zależne od obecniości karty SD: jest - zapisuje do pliku, brak - wysyła na port w standardzei NMEA.
+   Logowane są następujące informacje:
+   długość geog.,szerokość geog,wysokość_do_decymetra,data(rrrr.mm.dd),czas GMT(00:00:00),rodzaj_fix'a,hdop,pdop,ilosc_satelit_z_fixem
+   Dane są logowane standardowo co 5 sekund.
+   Nazwa pliku z danymi to data (rrrr.mm.dd).
+   Takie dane można przekonwertować na stronie https://www.gpsvisualizer.com/
+   Dioda czderwona sygnalizuje 3 stany:
+   świeci -> brak karty - gdy karta wyjęta wysyła dane na serial tak, że można podłączyć do PC i korzystać
+   miga -> inicjalizuje się, czeka na FIX; błąd
+   zgaszona -> wszystko OK! i zapala zieloną :)
 */
 
 #include <TinyGPS++.h>
@@ -40,116 +19,242 @@
 #include <SPI.h>
 #include <SD.h>
 
-// Pins used for communicating with GPS module
-static const int RXPin = 4, TXPin = 3;
-// Status led
-static const int GpsLedPin = 9;
-// Baud rate of your GPS module (usually 4800 or 9600)
-static const uint32_t GPSBaud = 9600;
-// How frequently should we save current location (milliseconds)
-static const unsigned long frequency = 5000;
+//piny do komunikacji z GPS
+#define RXPin 2
+#define TXPin 3
+
+/*
+   pin do diody inforamcyjnej:
+   czerwona świeci -> brak karty - gdy karta wyjęta wysyła dane na serial tak, ze mozna podłączyć do PC i korzystać
+   miga -> inicjalizuje się, czeka na FIX; błąd
+   zgaszona -> wszystko OK! zielona miga :)
+*/
+#define GpsLedPinRed 7
+
+//dioda zielona dla czytelnosci, że OK. bo brak swiecacej diody niektorych moze wprawiac w zaklopotanie
+#define GpsLedPinGreen 6
+
+// szybkość transmisji danych.
+#define GPSBaud 9600
+
+// częstotliwość zapisu lokalizacji (w milisekundach)
+#define frequency 5000
 
 // gps object
 TinyGPSPlus gps;
-// true when we have found location since last restart and file has been opened
-boolean opened = false;
-// current data file
-File dataFile;
-// file name
-String fileName;
-// timestamp of previous location capture. Used to check if we should save this location or skip it
-unsigned long previous=0;
-// The serial connection to the GPS device
+
+//będzie sprawdzać czy odbiornik ma FIX: 1-brak, 2-fix 2D (można wykorzystać), 3-fix 3D
+TinyGPSCustom quality(gps, "GNGSA", 2);
+
+//PDOP
+TinyGPSCustom pdop(gps, "GNGSA", 15);
+
+//HDOP
+TinyGPSCustom hdop(gps, "GNGSA", 16);
+
+//ilość satelit musi być minimum 3 dla poprawnej pozycji. 4 dla pozycji z poprawką zegara GPS co podnosi dokładnosc
+String sat = "0";
+
+// serial
 SoftwareSerial ss(RXPin, TXPin);
+
+// true, gdy znaleźliśmy lokalizację od ostatniego uruchomienia i plik został otwarty
+boolean opened = false;
+
+// aktualny plik danych
+File dataFile;
+
+// nazwa pliku
+String fileName;
+
+// kontrolka czasu do sprawdzania odstępu 5 sekund
+unsigned long previous = 0;
+
+//kontrolka obecnosci karty SD
+boolean sdPresent = false;
 
 void setup()
 {
+  //zaninicjalizuj serial
+  Serial.begin(GPSBaud);
   ss.begin(GPSBaud);
-  pinMode(GpsLedPin, OUTPUT);
-  digitalWrite(GpsLedPin, LOW);
 
-  if (!SD.begin(10))
+  //zainicjalizuj diody
+  pinMode(GpsLedPinRed, OUTPUT);
+  digitalWrite(GpsLedPinRed, LOW);
+  pinMode(GpsLedPinGreen, OUTPUT);
+  digitalWrite(GpsLedPinGreen, LOW);
+
+  //sprawdź kartę SD
+  sdPresent = SD.begin(10);
+  //brak SD - zapal diodę
+  if (sdPresent == false)
   {
-    digitalWrite(GpsLedPin, HIGH);
-    while(true);
+    digitalWrite(GpsLedPinRed, HIGH);
   }
 }
 
 void loop()
 {
-  // If we have data, decode and log the data
-  while (ss.available() > 0)
-    if (gps.encode(ss.read()))
-      logInfo();
-
-  // Test that we have had something from GPS module within first 10 seconds
-  if (millis() > 10000 && gps.charsProcessed() < 10)
-  {
-    // Set error led
-    digitalWrite(GpsLedPin, HIGH);
-    // Wiring error so stop trying
-    while(true);
+  //brak karty - wysyłaj wszystko na serial, bez kontroli, bez diody. weryfikacja poprawnosci następuje w dedykowanych programach
+  if (sdPresent == false) {
+    while (ss.available()) {
+      byte c = ss.read();
+      Serial.print((char)c);
+    }
+  }
+  else {
+    // jesli cos przychodzi z seriala to działaj
+    while (ss.available()) {
+      if (gps.encode(ss.read())) {
+        //odczytaj info o fix'ie
+        String  fix = quality.value();
+        //odczytaj info o horyzontalnej precyzji
+        String horizPrec = hdop.value();
+        //odczytaj info o ilosci satelit
+        sat = gps.satellites.value();
+        // Mrugaj czerwoną aż do ustalenia poprawnej pozycji (nawet do 5-7 minut przy zimnym starcie w złych warunkach)
+        if (gotFIX(fix, horizPrec, sat) == 0)
+        {
+          blinkLed(false);
+          return;
+        }
+        //działaj jeśli ma fix'a
+        else {
+          logInfo();
+        }
+      }
+    }
   }
 }
-
-// Help function to pad 0 prefix when valus < 10
+/*
+   funkcja sprawdzajaca czy odbiornik GPS osiągnał założoną dokładnosć
+*/
+int gotFIX(String fix, String horizPrec, String sat) {
+  //zamiana ze stringa otrzymanego z biblioteki TinyGPS++ na inty
+  int fixInt = fix.toInt();
+  int satInt = sat.toInt();
+  int horizPrecInt = horizPrec.toInt();
+  /*
+     sprawdzenie dokładnosci otrzymanej pozycji z odbiornika GPS
+     fixInt:
+     - 1 brak fixa
+     - 2 fix 2D
+     - 3 fix 3D
+     horizPrecInt:
+     - inaczej hdop - poniżej 10 dla rozwiązania 3D, poniżej 5 dla rozwiązania 2D
+     satInt:
+     - minimum do wyznaczenia pozycji w 2D to 3 satelity. do dokładnej są 4 ponieważ jest to poprawka czasu.
+     dlatego zawsze warto mieć 4 bo jest pewność poprawności wyzanczenia
+  */
+  if (fixInt == 3 && horizPrecInt < 10 && satInt > 3 || fixInt == 2 && horizPrecInt < 5 && satInt > 3)
+    return 1;
+  else
+    return 0;
+}
+/*
+   funkcaj migajaca diodami
+   false - czerwona
+   true - zielona
+*/
+void blinkLed(boolean led) {
+  if (led == false) {
+    digitalWrite(GpsLedPinGreen, LOW);
+    digitalWrite(GpsLedPinRed, HIGH);
+    delay(20);
+    digitalWrite(GpsLedPinRed, LOW);
+  }
+  else {
+    digitalWrite(GpsLedPinRed, LOW);
+    digitalWrite(GpsLedPinGreen, HIGH);
+    delay(20);
+    digitalWrite(GpsLedPinGreen, LOW);
+  }
+}
+// funkcja drukująca "0" przy jednocyfrowych liczbach
 void printIntValue(int value)
 {
-  if(value < 10)
+  if (value < 10)
   {
     dataFile.print(F("0"));
   }
   dataFile.print(value);
 }
 
-// Log current info if we have valid location
+// funkcja realizująca zapis danych
 void logInfo()
 {
-  // Wait until we have location locked!
-  if(!gps.location.isValid())
+  if (!opened)
   {
-    digitalWrite(GpsLedPin, HIGH);
-    delay(20);
-    digitalWrite(GpsLedPin, LOW);
-    return;
-  }
-
-  if(!opened)
-  {
-    // When we first get something to log we take file name from that time
+    // tworzy plik z nazwa w formie rrrr.mm.dd.txt jeśli nie istnieje
     fileName = "";
     fileName += gps.date.year();
-    if(gps.date.month() < 10) fileName += "0";
+    if (gps.date.month() < 10) fileName += "0";
     fileName += gps.date.month();
-    if(gps.date.day() < 10) fileName += "0";
+    if (gps.date.day() < 10) fileName += "0";
     fileName += gps.date.day();
     fileName += ".txt";
     opened = true;
+    /*
+       jesli plik nie istnieje tworzy naglowek
+       jesli istnieje plik zgodny z datą pomiarów następuje dopisywanie
+    */
+    if (!SD.exists(fileName)) {
+      dataFile = SD.open(fileName, FILE_WRITE);
+      dataFile.print("latitude,longitude,altitude,date,time,fix,hdop,pdop,sattelites in fix");
+      dataFile.println();
+      dataFile.close();
+    }
   }
 
-  // Show that everything is ok
-  digitalWrite(GpsLedPin, LOW);
+  // jesli ok migaj na zielono
+  blinkLed(true);
 
-  if(millis() - previous > frequency)
+  //sprawdź czy minęło 5 sekund i zapisz
+  if (millis() - previous > frequency)
   {
+    //ustaw czas kontrolny
     previous = millis();
-    // Write data row (dd.MM.yyyy HH:mm:ss lat,lon)
+    //otwórz plik i zapisuj
     dataFile = SD.open(fileName, FILE_WRITE);
-    printIntValue(gps.date.day());
+    //długosć geograficzna
+    dataFile.print(gps.location.lat(), 9);
+    dataFile.print(F(","));
+    //szerokość geograficzna
+    dataFile.print(gps.location.lng(), 9);
+    dataFile.print(F(","));
+    //wysokosc w metrach nad poziomem morza
+    dataFile.print(gps.altitude.meters(), 1);
+    dataFile.print(F(","));
+    //rok w formacie rrrr
+    dataFile.print(gps.date.year());
     dataFile.print(F("."));
+    //miesiąc w formacie mm
     printIntValue(gps.date.month());
     dataFile.print(F("."));
-    dataFile.print(gps.date.year());
-    dataFile.print(F(" "));
+    //dzień w formacie dd
+    printIntValue(gps.date.day());
+    dataFile.print(F(","));
+    //godzina w formacie hh
     printIntValue(gps.time.hour());
     dataFile.print(F(":"));
+    //minuta w formacie mm
     printIntValue(gps.time.minute());
     dataFile.print(F(":"));
+    //secunda w formacie ss
     printIntValue(gps.time.second());
-    dataFile.print(F(" "));
-    dataFile.print(gps.location.lat(), 6);
     dataFile.print(F(","));
-    dataFile.print(gps.location.lng(), 6);
+    //dokładność fix'a (2 lub 3)
+    dataFile.print(quality.value());
+    dataFile.print(F(","));
+    //parametr hdop
+    dataFile.print(hdop.value());
+    dataFile.print(F(","));
+    //paramtetr pdop
+    dataFile.print(pdop.value());
+    dataFile.print(F(","));
+    //ilosc satelit
+    dataFile.print(gps.satellites.value());
     dataFile.println();
     dataFile.close();
   }
