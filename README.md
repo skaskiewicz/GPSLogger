@@ -12,3 +12,4 @@ miga -> inicjalizuje się, czeka na FIX; błąd
 zgaszona -> wszystko OK! i zapala zieloną :)
 
 Wykorzystuję bibliotekę TinyGPS++: <http://arduiniana.org/libraries/tinygpsplus/>
+https://skaskiewicz.pl/.foto/IMG_20200413_120334.jpg
