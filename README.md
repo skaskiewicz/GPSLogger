@@ -9,7 +9,7 @@ Takie dane można przekonwertować na stronie https://www.gpsvisualizer.com/
 Dioda czderwona sygnalizuje 3 stany:
 świeci -> brak karty - gdy karta wyjęta wysyła dane na serial tak, że można podłączyć do PC i korzystać
 miga -> inicjalizuje się, czeka na FIX; błąd
-zgaszona -> wszystko OK! i zapala zieloną :)
+zgaszona -> wszystko OK! i zapala zieloną :-)
 
 Wykorzystuję bibliotekę TinyGPS++: <http://arduiniana.org/libraries/tinygpsplus/>
 
