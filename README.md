@@ -15,10 +15,10 @@ Wykorzystuję bibliotekę TinyGPS++: <http://arduiniana.org/libraries/tinygpsplu
 
 Poniżej wersja testowa urządzenia na Arduino (docelowo przeniesienie na płytkę prototypową oraz wykorzystanie platformy 3,3V):
 
-![Foto 1](https://skaskiewicz.pl/.foto/image001.jpg)
-![Foto 2](https://skaskiewicz.pl/.foto/image002.jpg)
-![Foto 3](https://skaskiewicz.pl/.foto/image003.jpg)
-![Foto 4](https://skaskiewicz.pl/.foto/image004.jpg)
-![Foto 5](https://skaskiewicz.pl/.foto/image005.jpg)
-![Foto 6](https://skaskiewicz.pl/.foto/image006.jpg)
-![Foto 7](https://skaskiewicz.pl/.foto/image007.jpg)
+![IMG_20200413_120413](https://github.com/user-attachments/assets/b461d621-0bfa-4769-ae05-7f1d095d0a53)
+![IMG_20200413_120408](https://github.com/user-attachments/assets/fef021db-b1e7-4b9f-b6e4-2d54b0a747cb)
+![IMG_20200413_120404](https://github.com/user-attachments/assets/98396da6-47a2-47bf-aa7b-96b81cbecba5)
+![IMG_20200413_120354](https://github.com/user-attachments/assets/f9fd685e-47b3-4551-a022-bcbdbab6e098)
+![IMG_20200413_120351](https://github.com/user-attachments/assets/df1147b6-8524-4e8e-ac2e-eed6cb497030)
+![IMG_20200413_120346](https://github.com/user-attachments/assets/93a89f97-b5cc-492f-b496-e9d88cfaf907)
+![IMG_20200413_120334](https://github.com/user-attachments/assets/228caa0e-0b4d-4bd1-a214-e266dc255180)
